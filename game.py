@@ -348,7 +348,7 @@ def cost_function_test(x,y,const=0.01):
     return float(abs(x-y))*const+0.5
 
 
-
+# todo: if all good player die check if the bad plaer can get to the goal
 if __name__ == "__main__":
     print('puzzle_sate class')
     for n in range (10,11):
