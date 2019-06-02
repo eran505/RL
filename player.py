@@ -19,6 +19,7 @@ class Player:
         self.start_angle=None
         self.action=actions_list
         self.short_paths=None
+        self.RL_algo=None
         self.action_dico=None
         self.q_table={}
         self.is_dog=False
@@ -26,6 +27,7 @@ class Player:
         self.is_adversarial=is_bad
         self.start_budget=budget_b
         self.starting_point = None
+        self.get_action_list_to_dict()
 
     def __str__(self):
         x_y = self.get_coordinates()
@@ -43,6 +45,13 @@ class Player:
     def get_cur_state(self):
         return markov_state.get_deep_copy_state(self.cur_state)
 
+    def rest_game(self,clean_history=True):
+        self.reset_budget()
+        if clean_history:
+            self.history=[]
+        if self.RL_algo is not None:
+            self.RL_algo.rest()
+
     def reset_budget(self):
         self.budget=self.start_budget
         if self.policy is not None:
@@ -51,7 +60,7 @@ class Player:
     def set_policy(self,paths):
         self.short_paths=paths
         self.choose_policy()
-        self.get_action_list_to_dict()
+
 
     def choose_policy(self):
         '''
@@ -73,6 +82,11 @@ class Player:
             d[action_a.name]=action_a
         self.action_dico=d
 
+
+    def before_die(self,r):
+        if self.RL_algo is not None:
+            self.RL_algo.up_date_end_episode(r)
+
     def add_state_to_history(self,state_s):
         self.history.append(str(state_s))
 
@@ -87,6 +101,9 @@ class Player:
 
     def init_q_table(self):
         self.q_table={}
+
+    def set_dead_state(self):
+        self.cur_state.set_player(self.name,['nan','nan'],0)
 
     def set_player_first_pos(self,x,y,angle):
         pass
@@ -134,70 +151,90 @@ class Player:
             action_a = self.get_action()
         self.take_action(action_a)
 
+        return str(action_a)
         #if self.policy is None:
         #    self.update_q_table()
 
-    def get_action(self,egreedy=True,epsilon=0.1):
+    def get_action(self,RL=True,epsilon=0.1):
         '''
         TODO: need to change the epsilon that will decid over time, that the policy will be detremanstic
         :param egreedy:
         :param epsilon:
         :return:
         '''
-        max_q = 0
-        res_arr = []
-
-        # explore in provability of epsilon
-        if egreedy:
-            if np.random.rand() < epsilon:
-                pos_action = np.random.choice(len(self.action), 1)[0]
-                return self.action[pos_action]
-
-        # see every Q value of the cur state and action
-        for a in self.action:
-            str_name = "{}_A={}".format(str(self.cur_state),str(a))
-            if str_name in self.q_table:
-                if max_q==self.q_table[str_name]:
-                    res_arr.append(a)
-                elif max_q<self.q_table[str_name]:
-                    res_arr=[]
-                    res_arr.append(a)
-        if len(res_arr)==0:
-            # choose action at uniform probability
-            res_arr = self.action
-        if len(res_arr)!=1:
-            pos_action = np.random.choice(len(res_arr), 1)[0]
-            return res_arr[pos_action]
-        else:
-            return res_arr[0]
-
+        state_str_s = str(self.cur_state)
+        action_str = self.RL_algo.e_greedy_policy(state_str_s)
+        action = self.action_dico[action_str]
+        return action
 
     def get_sum_distance(self):
+        d = self.get_dico_distance()
+        return sum(d.values())
+
+
+    def update_policy(self,old_state,old_action,r_reward):
+        if self.RL_algo is not None:
+            # get the max next action
+            if str(old_state) == str(self.cur_state):
+                # update
+                self.RL_algo.update_out_of_bound_state(old_state,old_action,r_reward)
+                return
+            next_a = self.RL_algo.e_greedy_policy(str(self.cur_state),exploration=False)
+            old_state_str = str(old_state)
+            cur_state_str = str(self.cur_state)
+            self.RL_algo.update_q_table(old_state_str,old_action,cur_state_str ,next_a,r_reward)
+
+    def get_dico_distance(self):
         keyword_suffix = 'bad'
         if self.is_adversarial:
             keyword_suffix='good'
         my_pos = self.cur_state.get_pos_by_name(self.name)
-        adversary_pos_list = self.cur_state.get_all_players_pos(keyword_suffix)
+        opponent_pos_list = self.cur_state.get_all_players_pos(keyword_suffix)
         d_dist={}
-        # calculates the distance from all adversary players
-        sum_dist=0
-        for name in adversary_pos_list.keys():
-            dis_i = heuristic.euclidean_distance(my_pos,adversary_pos_list[name])
+        for name in opponent_pos_list.keys():
+            if opponent_pos_list[name][0] == 'nan':
+                continue
+            dis_i = heuristic.euclidean_distance(my_pos,opponent_pos_list[name])
             d_dist[name]= dis_i
-            sum_dist+=dis_i
-
-        return sum_dist
-
-        
+        return d_dist
 
 
+
+
+
+    # TODO::cum as integer insted of an object
     def take_action(self,action_a):
         '''
         This function take action and output new state and the correspond cost in the budget
         '''
+        self.privous_state = str(self.cur_state)
         cost_budget = action_a.get_cost(self.get_angel())
         new_state = action_a.apply_action(self.cur_state, self.name)
         self.cur_state = new_state
         self.cur_state.update_budget(float(cost_budget),self.name)
         self.budget=float(self.budget)-float(cost_budget)
-        #return self.get_reward()
+        return
+
+
+    def cal_reward(self):
+        '''
+        two child in the same time can collide
+        :return:
+        '''
+        # out of budget
+        reward_sum = 0
+        if self.budget<=0:
+            reward_sum =- 1
+        # if collusion
+        dico_dist = self.get_dico_distance()
+        ctr_collide=0
+        for k in dico_dist.keys():
+            if dico_dist[k]==0:
+                ctr_collide+=1
+        reward_sum += (1.0)*ctr_collide
+
+
+
+
+if __name__ == "__main__":
+    pass

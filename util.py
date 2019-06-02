@@ -37,6 +37,22 @@ def walk_rec(root, list_res, rec="", file_t=True, lv=-800, full=True):
         break
     return class_list
 
+def mkdir_system(path_root, name, is_del=True):
+    if path_root is None:
+        raise Exception("[Error] passing a None path --> {}".format(path_root))
+    if path_root[-1] != '/':
+        path_root = path_root + '/'
+    if os.path.isdir("{}{}".format(path_root, name)):
+        if is_del:
+            os.system('rm -r {}{}'.format(path_root, name))
+        else:
+            #print "{}{} is already exist".format(path_root, name)
+            return '{}{}'.format(path_root, name)
+    print( '[OS] mkdir {}{}'.format(path_root, name))
+    os.system('mkdir {}{}'.format(path_root, name))
+    return '{}{}'.format(path_root, name)
+
+
 
 
 if __name__ == "__main__":
