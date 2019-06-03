@@ -30,6 +30,9 @@ class SarsaLamda:
         self.epslion_eligibility=0.0009
         self.ctr_state=0
         self.action_map={}
+        self.cum_reward=0
+        self.cum_td_error=0
+        self.ctr_num_update=0
 
     def set_variable(self,d):
         if 'lambda' in d:
@@ -45,12 +48,29 @@ class SarsaLamda:
 
     def rest(self):
         self.eligibility_q={}
+        self.cum_reward = 0
+        self.cum_td_error = 0
+        self.ctr_num_update=0
 
+    def calc_td_error(self,reward,q_vale,q_value_next=None):
+        # update the number of updates that done
+        self.ctr_num_update+=1
+        # up date the acc reward
+        self.cum_reward+=reward
+
+        if q_value_next is None:
+            td_error =  float(reward) - q_vale
+        else:
+            td_error= float(reward) + (self.discount_factor * q_value_next) - q_vale
+        # update the td_error acc
+        self.cum_td_error+=td_error
+        return td_error
     def update_q_table(self,stat_cur,action_cur,next_state,next_action,reward):
         q_val_cur,cur_state_entry,cur_action_entry = self.get_q_value(stat_cur,action_cur)
         q_val_next,next_state_entry,next_action_entry = self.get_q_value(next_state, next_action)
 
-        td_error = float(reward) + self.discount_factor * q_val_next - q_val_cur
+        #td_error = float(reward) + self.discount_factor * q_val_next - q_val_cur
+        td_error = self.calc_td_error(reward,q_val_cur,q_val_next)
         self.update_eligibility(cur_state_entry,cur_action_entry )
         self.update_all_recent_state(td_error)
 
@@ -75,11 +95,15 @@ class SarsaLamda:
         self.lower_eligibility_trace()
 
     def up_date_end_episode(self,reward):
+
+        #TODO: need to look this up cuz it need to be the state in which the other players are and not the last one
+
         str_state_action = self.get_last_sate_action()
         state_entry = int(str(str_state_action ).split('_')[0])
         action_entry = int(str(str_state_action).split('_')[1])
         q_val = self.matrix_q[state_entry,action_entry]
-        td_error =  (reward - q_val)
+        td_error = self.calc_td_error(reward,q_val,None)
+        ##td_error =  (reward - q_val)
         self.update_all_recent_state(td_error)
 
 

@@ -4,6 +4,7 @@ import player
 import matplotlib.pyplot as plt
 import algo_RL
 import numpy as np
+from os import getcwd
 import actions
 from datetime import datetime
 import util
@@ -20,6 +21,7 @@ class Game:
         self.adversarial_player=[]
         self.moves=None
         self.all_player=[]
+        self.track_reward={}
         self.graveyard=[]
         self.constructor()
 
@@ -269,7 +271,18 @@ class Game:
 
         return reward
 
+    def init_average_reward(self):
+        '''
+        init the tracker after the reward
+        '''
+        d_avg_reward={}
+        d_avg_reward['ctr']=0
+        for p in self.all_player :
+            d_avg_reward[p.name]=0
+        self.track_reward=d_avg_reward
+
     def start_the_game(self):
+        self.init_average_reward()
         round_ctr=0
         is_end = False
         while(True):
@@ -391,6 +404,8 @@ def trail_game(size,budget,iter_num,d_rl=None,path_data=None):
     df['acc_sum_at_goal'] = df['at_goal'].cumsum()
 
 
+
+
     if d_rl is not None:
         index_conf=d_rl['index']
     else:
@@ -400,7 +415,15 @@ def trail_game(size,budget,iter_num,d_rl=None,path_data=None):
 
         # plotting
         polt_path = util.mkdir_system(path_data,'plots',False)
-        #plotting(df, index_conf, polt_path,iter_num)
+        plotting(df, index_conf, polt_path,['acc_sum_collusion','acc_sum_at_goal'])
+
+        #### moving average
+        for i in [200, 1000]:
+            df['Reward_MA{}'.format(i)] = df['p1_good_acc_reward'].rolling(window=i).mean()
+            df['TD_error_MA{}'.format(i)] = df['p1_good_acc_td_error'].rolling(window=i).mean()
+            plotting(df, "{}_RL_acc_MA{}".format(index_conf,i), polt_path, ['Reward_MA{}'.format(i),'TD_error_MA{}'.format(i)])
+        ######
+
 
     res_d ={ 'out_of_budget_p1':df['out_of_budget_p1'].sum(),'budget':budget,
             'collusion':df['collusion'].sum(),'at_goal':df['at_goal'].sum()
@@ -438,33 +461,37 @@ def init_exp(d_param,d_l,path_data):
     d_l.append(tmp_d)
     return d_l
 
-def plotting(df,conf_num,path_save,iter_num):
-    fig, ax = plt.subplots()
-    width = 0.2  # width of bar
-    x = len(df)
-    ax.bar(x ,width,df['acc_sum_collusion'], color='#000080', label='Case-1')
+def plotting(df,conf_num,path_save,list_line):
+    list_color=['blue','green','red','black','magenta','cyan']
+    if len(list_line)>len(list_color):
+        print ('Cant output plot no color ')
+        return
+    for i in range(len(list_line)):
+        plt.plot(df.index, list_line[i] , data=df, marker='', color=list_color[i], linewidth=1, label=list_line[i] )
 
-    ax.bar(x ,width,df['acc_sum_at_goal'], color='#0F52BA', label='Case-2')
-
-
-    #ax = df.plot(x="episode_num", y=['acc_sum_collusion',"acc_sum_at_goal"], kind="bar")
-    #df.plot(x="episode_num", y="acc_sum_collusion", kind="bar", ax=ax, color="C2")
-    #df.plot(x="episode_num", y="acc_sum_at_goal", kind="bar", ax=ax, color="C3")
-    plt.xlabel("episode number")  # Text for X-Axis
-    plt.ylabel("")  # Text for Y-Axis
-    plt.title("RL ")
-    #if iter_num>=100:
-    #    interval=iter_num/1000
-    #    plt.xticks(np.arange(1, iter_num, interval))
-    #x = plt.show(ax)
+    # Add title and axis names
+    plt.title('Catch Game')
+    plt.xlabel('Number of Episode ')
+    plt.ylabel('Value')
+    plt.legend()
     plt.savefig('{}/conf_{}.png'.format(path_save,conf_num))
     plt.close()
+
 def get_info_out_state(game,info,time_step,episode_num):
     # check
     d={'X':game.grid_world.x_size,'Y':game.grid_world.y_size,
        'goals':game.grid_world.get_state_goals_str()}
     sum_dis=0
     ctr_p=0
+
+    # get the RL data
+    list_p  = game.get_all_player()
+    for p in list_p:
+        res_info_rl = p.get_RL_info()
+        if res_info_rl is None:
+            continue
+        for k in res_info_rl.keys():
+            d['{}_{}'.format(p.name,k)]=res_info_rl[k]
 
     for player_p in game.get_all_player():
         ctr_p+=1
@@ -544,19 +571,8 @@ def cost_function_test(x,y,const=0.001):
 
 # todo: if all good player die check if the bad plaer can get to the goal
 if __name__ == "__main__":
+    path_repo = getcwd()
+    path_to_conf = '{}/{}/config.csv'.format(path_repo,'conf')
     print ('Starting.....')
-    experiment_producer()
+    experiment_producer(path_p_conf=path_to_conf)
     exit()
-
-    ######
-    print('puzzle_sate class')
-    for n in range (4,5):
-        d_l=[]
-        for i in range(6,7):
-            tmp_d = trail_game(n,i)
-            tmp_d['k']=i
-            d_l.append(tmp_d)
-
-        df = pd.DataFrame(d_l)
-        df.to_csv('/home/ise/games/catch/game_res_N_{}.csv'.format(n))
-    #print (d)

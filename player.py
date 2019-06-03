@@ -38,6 +38,15 @@ class Player:
         self.starting_point=[x,y]
         self.start_angle=angle
 
+    def get_RL_info(self,avg=True):
+        if self.RL_algo is not None:
+            d={}
+            d['avg_td_error'] = self.RL_algo.cum_td_error/float(self.RL_algo.ctr_num_update)
+            d['acc_td_error'] = self.RL_algo.cum_td_error
+            d['acc_reward'] = self.RL_algo.cum_reward
+            d['avg_reward'] = self.RL_algo.cum_reward/float(self.RL_algo.ctr_num_update)
+            return d
+        return None
 
     def get_starting_point(self):
         return deepcopy(self.starting_point)
