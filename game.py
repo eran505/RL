@@ -104,6 +104,13 @@ class Game:
         # check if the move is legal
         return self.grid_world.is_vaild_move(cord_x_y[0],cord_x_y[1])
 
+    def check_if_any_adver_player_at_goal(self):
+        all_p = self.all_player
+        for p in all_p:
+            cord_x_y = p.get_coordinates()
+            if self.check_if_player_at_goal(cord_x_y,p):
+                return True
+        return False
 
     def check_if_player_at_goal(self,cord_x_y,p_player):
         '''
@@ -169,6 +176,10 @@ class Game:
         #check if the player at the Goal:
         if self.check_if_player_at_goal(cord_x_y,player_p):
             # adversarial palyer is at the goal
+            for p in self.all_player:
+                if p.is_adversarial is False:
+                    r_reward = self.reward_calc(p)
+                    p.before_die(r_reward)
             self.remove_player(player_p)
             msg='#Adversarial player is at the Goal - {}'.format(player_p.name)
             print(msg)
@@ -252,9 +263,14 @@ class Game:
             return reward
         # check if the bad at the one of the goals
         if player_p.is_adversarial:
-            bol = self.check_if_player_at_goal(cord_x_y,player_p)
+            bol = self.check_if_player_at_goal(cord_x_y, player_p)
             if bol is True:
                 reward = 1
+                return reward
+        else:
+            bol = self.check_if_any_adver_player_at_goal()
+            if bol:
+                reward = -1
                 return reward
 
         bol,l_p = self.check_collusion_in_box(cord_x_y)
@@ -377,7 +393,7 @@ def trail_game(size,budget,iter_num,d_rl=None,path_data=None):
     for goal_i in goal_pos:
         pathz_i = policies.get_short_path_from_grid(my_game.grid_world,(bad_starting_pos[0],bad_starting_pos[1])
                                     ,(goal_i[0],goal_i[1]))
-        all_pathz.extend(pathz_i)
+        all_pathz.extend(pathz_i[:10])
 
 
     for p in get_player(bad_start=(bad_starting_pos[0],bad_starting_pos[1],0)
