@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import algo_RL
 import numpy as np
 from os import getcwd
+from os import system
+from os import path
 import actions
 from datetime import datetime
 import util
@@ -393,7 +395,7 @@ def trail_game(size,budget,iter_num,d_rl=None,path_data=None):
     for goal_i in goal_pos:
         pathz_i = policies.get_short_path_from_grid(my_game.grid_world,(bad_starting_pos[0],bad_starting_pos[1])
                                     ,(goal_i[0],goal_i[1]))
-        all_pathz.extend(pathz_i[:10])
+        all_pathz.extend(pathz_i)
 
 
     for p in get_player(bad_start=(bad_starting_pos[0],bad_starting_pos[1],0)
@@ -460,6 +462,8 @@ def experiment_producer(path_p_conf='/home/ise/games/conf/config.csv',
                         out_path='/home/ise/games/catch'):
     d_conf = read_csv_config(path_p_conf)
     path_exp = util.mkdir_system(out_path,'exp')
+    if path.isdir(path_exp):
+        system('cp {} {}'.format(path_p_conf,path_exp))
     path_data = util.mkdir_system(path_exp ,'data')
     path_summ = util.mkdir_system(path_exp , 'summary')
     d_info=[]

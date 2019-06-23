@@ -33,6 +33,16 @@ class SarsaLamda:
         self.cum_reward=0
         self.cum_td_error=0
         self.ctr_num_update=0
+        self.time_seq=0
+
+    def get_step_size(self):
+        if isinstance(self.step_size, str):
+            if self.step_size=='t':
+                return 1.0/self.time_seq
+            if self.step_size=='t^2':
+                return 1.0 / pow(self.time_seq,2)
+
+        return self.step_size
 
     def set_variable(self,d):
         if 'lambda' in d:
@@ -42,7 +52,12 @@ class SarsaLamda:
         if 'epsilon' in d:
             self.epslion=float(d['epsilon'])
         if 'step_size' in d:
-            self.step_size=float(d['step_size'])
+            if str(d['step_size']) == 't':
+                self.step_size = str(d['step_size'])
+            elif str(d['step_size']) == 't^2':
+                self.step_size = str(d['step_size'])
+            else:
+                self.step_size=float(d['step_size'])
         if 'eligibility' in d :
             self.epslion_eligibility=float(d['eligibility'])
 
@@ -53,6 +68,8 @@ class SarsaLamda:
         self.ctr_num_update=0
 
     def calc_td_error(self,reward,q_vale,q_value_next=None):
+        # time ctr ++
+        self.time_seq+=1
         # update the number of updates that done
         self.ctr_num_update+=1
         # up date the acc reward
@@ -65,6 +82,7 @@ class SarsaLamda:
         # update the td_error acc
         self.cum_td_error+=td_error
         return td_error
+
     def update_q_table(self,stat_cur,action_cur,next_state,next_action,reward):
         q_val_cur,cur_state_entry,cur_action_entry = self.get_q_value(stat_cur,action_cur)
         q_val_next,next_state_entry,next_action_entry = self.get_q_value(next_state, next_action)
@@ -85,13 +103,14 @@ class SarsaLamda:
         TD error
 
         '''
+        step_size_var = self.get_step_size()
         for k in self.eligibility_q:
             entry_array=str(k).split('_') #frist state , second action
             cur_state_entry=int(entry_array[0])
             cur_action_entry = int(entry_array[1])
             eligibility_val = self.eligibility_q[k]
             q_val = self.matrix_q[cur_state_entry,cur_action_entry ]
-            self.matrix_q[cur_state_entry,cur_action_entry ] = q_val + float(self.step_size) * td_error * eligibility_val
+            self.matrix_q[cur_state_entry,cur_action_entry ] = q_val + float(step_size_var) * td_error * eligibility_val
         self.lower_eligibility_trace()
 
     def up_date_end_episode(self,reward):

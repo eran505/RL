@@ -1,3 +1,4 @@
+from math import sqrt
 
 
 def euclidean_distance(point_A,point_B):
@@ -5,7 +6,9 @@ def euclidean_distance(point_A,point_B):
     for i in range(len(point_A)):
         result+=(point_A[i] - point_B[i]) ** 2
 
-    return result
+    result = sqrt(result)
+
+    return  result
 
 def manhattan_distance(point_A,point_B):
     result = 0
