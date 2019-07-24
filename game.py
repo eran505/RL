@@ -386,7 +386,7 @@ def trail_game(size,budget,iter_num,d_rl=None,path_data=None):
     m=size
     list_d_record=[]
     bad_starting_pos = [0,m]
-    goal_pos = [(1,0),(m-1,0)]
+    goal_pos = [(0,0),(m-1,0)]
     good_starting_pos = [int(m/2),0]
 
     my_game = Game('test_01',init_grid_bord(m+1,m+1,bad_starting_pos,good_starting_pos ,goal_pos))
@@ -395,6 +395,7 @@ def trail_game(size,budget,iter_num,d_rl=None,path_data=None):
     for goal_i in goal_pos:
         pathz_i = policies.get_short_path_from_grid(my_game.grid_world,(bad_starting_pos[0],bad_starting_pos[1])
                                     ,(goal_i[0],goal_i[1]))
+        pathz_i = pathz_i
         all_pathz.extend(pathz_i)
 
 
@@ -461,7 +462,8 @@ def read_csv_config(path_p_conf):
 def experiment_producer(path_p_conf='/home/ise/games/conf/config.csv',
                         out_path='/home/ise/games/catch'):
     d_conf = read_csv_config(path_p_conf)
-    path_exp = util.mkdir_system(out_path,'exp')
+    date_str =  datetime.now().strftime("%Y_%m_%d_%H%M%S")
+    path_exp = util.mkdir_system(out_path,'exp_{}'.format(date_str))
     if path.isdir(path_exp):
         system('cp {} {}'.format(path_p_conf,path_exp))
     path_data = util.mkdir_system(path_exp ,'data')
@@ -591,6 +593,11 @@ def cost_function_test(x,y,const=0.001):
 
 # todo: if all good player die check if the bad plaer can get to the goal
 if __name__ == "__main__":
+
+ #   import tensorflow as tf
+ #   print(tf.__version__)
+ #   print ('done')
+ #   exit()
     path_repo = getcwd()
     path_to_conf = '{}/{}/config.csv'.format(path_repo,'conf')
     print ('Starting.....')
